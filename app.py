@@ -61,8 +61,7 @@ def load_model():
 model, model_trained = load_model()
 
 
-# --- Sidebar: example sequences ---
-st.sidebar.header("Example Sequences")
+# --- Example sequences ---
 examples = {
     # --- Known easy: balanced GC, no runs, short ---
     "Mipomersen-like ASO (20-mer)": "GCCTCAGTCTGCTTCGCACC",
@@ -107,22 +106,27 @@ examples = {
     # challenge — real drug uses constrained ethyl (cEt) modifications.
 }
 
-selected_example = st.sidebar.selectbox(
-    "Load example sequence:",
-    ["(none)"] + list(examples.keys()),
+# --- Input mode: example OR custom (mutually exclusive) ---
+input_mode = st.radio(
+    "Input method:",
+    ["Select an example sequence", "Enter a custom sequence"],
+    horizontal=True,
 )
 
-# --- Main input ---
-default_seq = ""
-if selected_example != "(none)":
-    default_seq = examples[selected_example]
-
-sequence = st.text_input(
-    "Enter oligonucleotide sequence (DNA: A, T, G, C):",
-    value=default_seq,
-    max_chars=200,
-    placeholder="e.g., ATCGATCGATCG",
-).upper().strip()
+if input_mode == "Select an example sequence":
+    selected_example = st.selectbox(
+        "Choose an example:",
+        list(examples.keys()),
+    )
+    sequence = examples[selected_example].upper().strip()
+    st.code(sequence, language=None)
+else:
+    sequence = st.text_input(
+        "Enter oligonucleotide sequence (DNA: A, T, G, C):",
+        value="",
+        max_chars=200,
+        placeholder="e.g., ATCGATCGATCG",
+    ).upper().strip()
 
 # Validate
 valid = True
@@ -148,14 +152,15 @@ if sequence and valid:
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("Manufacturability Score")
-
         if model_trained:
             # Model prediction
             with torch.no_grad():
                 model_score = model.forward([sequence]).item()
 
-            # Show both scores
+            st.subheader("Model Prediction")
+            st.caption(
+                "Nucleotide Transformer + finetuned scoring head"
+            )
             score_color = (
                 "#2ecc71" if model_score >= 70
                 else "#f39c12" if model_score >= 40
@@ -166,7 +171,6 @@ if sequence and valid:
                 f"{model_score:.0f}/100</h1>",
                 unsafe_allow_html=True,
             )
-            st.caption(f"Heuristic baseline: {h_score:.0f}/100")
 
             difficulty = (
                 "Easy — standard synthesis"
@@ -176,8 +180,26 @@ if sequence and valid:
                 else "Challenging — expect low yield"
             )
             st.info(f"**{difficulty}**")
+
+            st.markdown("---")
+            st.subheader("Heuristic Sanity Check")
+            st.caption(
+                "Rule-based score from known synthesis chemistry constraints"
+            )
+            h_color = (
+                "#2ecc71" if h_score >= 70
+                else "#f39c12" if h_score >= 40
+                else "#e74c3c"
+            )
+            st.markdown(
+                f"<h3 style='color:{h_color}; text-align:center;'>"
+                f"{h_score:.0f}/100</h3>",
+                unsafe_allow_html=True,
+            )
         else:
             # Fallback to heuristic
+            st.subheader("Heuristic Score")
+            st.caption("Rule-based — train model for ML prediction")
             score_color = (
                 "#2ecc71" if h_score >= 70
                 else "#f39c12" if h_score >= 40
@@ -188,32 +210,40 @@ if sequence and valid:
                 f"{h_score:.0f}/100</h1>",
                 unsafe_allow_html=True,
             )
-            st.caption("(Heuristic score — train model for ML prediction)")
 
     with col2:
         st.subheader("Feature Breakdown")
-        feature_display = {
-            "GC Content": f"{features['gc_content']:.1%}",
-            "Sequence Length": f"{features['length']} nt",
-            "Cumulative Yield Est.": f"{features['length_yield']:.1%}",
-            "Longest Homopolymer": f"{features['max_homopolymer']:.0f} nt",
-            "PolyG Run": f"{features['polyG_run']:.0f} nt",
-            "PolyC Run": f"{features['polyC_run']:.0f} nt",
-            "PolyA Run": f"{features['polyA_run']:.0f} nt",
-            "PolyT Run": f"{features['polyT_run']:.0f} nt",
-            "G-Quad Tracts (GGG+)": f"{features['g_quad_tracts']:.0f}",
-            "Self-Complementarity": f"{features['self_complementarity']:.1%}",
-            "Dinucleotide Complexity": f"{features['dinucleotide_complexity']:.2f}",
-            "Terminal Penalty": f"{features['terminal_penalty']:.2f}",
-        }
-        # Two-column feature table
+        feature_display = [
+            ("GC Content", f"{features['gc_content']:.1%}",
+             "Fraction of G/C bases. Optimal: 40-60%. High GC causes self-aggregation; low GC weakens target binding."),
+            ("Sequence Length", f"{features['length']} nt",
+             "Oligo length in nucleotides. Optimal: 18-25 nt. Yield drops exponentially with length (~99% coupling per step)."),
+            ("Cumulative Yield Est.", f"{features['length_yield']:.1%}",
+             "Estimated full-length product yield at 99% coupling efficiency. Optimal: >80% (under ~25 nt)."),
+            ("Longest Homopolymer", f"{features['max_homopolymer']:.0f} nt",
+             "Longest single-nucleotide repeat run. Optimal: <=3 nt. Longer runs cause coupling failures and secondary structure."),
+            ("PolyG Run", f"{features['polyG_run']:.0f} nt",
+             "Longest consecutive G run. Optimal: <=3. PolyG >=4 forms G-quadruplexes — the biggest synthesis killer."),
+            ("PolyC Run", f"{features['polyC_run']:.0f} nt",
+             "Longest consecutive C run. Optimal: <=4. PolyC >=5 can form i-motif structures during deprotection."),
+            ("PolyA Run", f"{features['polyA_run']:.0f} nt",
+             "Longest consecutive A run. Optimal: <=4. Long polyA is less problematic but can cause slippage."),
+            ("PolyT Run", f"{features['polyT_run']:.0f} nt",
+             "Longest consecutive T run. Optimal: <=4. Long polyT is less problematic but can cause slippage."),
+            ("G-Quad Tracts (GGG+)", f"{features['g_quad_tracts']:.0f}",
+             "Number of separate GGG+ runs. Optimal: <4. Four or more tracts can fold into a G-quadruplex even if each run is short."),
+            ("Self-Complementarity", f"{features['self_complementarity']:.1%}",
+             "Fraction of windows with a reverse-complement match elsewhere. Optimal: <10%. High values form hairpins that block coupling."),
+            ("Dinucleotide Complexity", f"{features['dinucleotide_complexity']:.2f}",
+             "Shannon entropy of dinucleotide frequencies (0-1). Optimal: >0.7. Low complexity makes HPLC purification harder."),
+            ("Terminal Penalty", f"{features['terminal_penalty']:.2f}",
+             "Penalty for G at 3' or 5' ends (0-0.15). Optimal: 0. G-loaded CPG has lower efficiency; 5'-G risks G-quartet with failure sequences."),
+        ]
+        # Two-column feature table with hover tooltips
         fcol1, fcol2 = st.columns(2)
-        items = list(feature_display.items())
-        for i, (name, val) in enumerate(items):
-            if i < len(items) // 2:
-                fcol1.metric(name, val)
-            else:
-                fcol2.metric(name, val)
+        for i, (name, val, tooltip) in enumerate(feature_display):
+            col = fcol1 if i < len(feature_display) // 2 else fcol2
+            col.metric(name, val, help=tooltip)
 
     # --- Attribution heatmap ---
     st.divider()
@@ -304,11 +334,25 @@ if sequence and valid:
         st.pyplot(fig)
         plt.close(fig)
 
+        # Colour legend bar (compact)
+        fig_legend, ax_legend = plt.subplots(figsize=(3, 0.3))
+        fig_legend.subplots_adjust(left=0.02, right=0.98, top=0.65, bottom=0.35)
+        gradient = np.linspace(0, 1, 256).reshape(1, -1)
+        ax_legend.imshow(gradient, aspect="auto", cmap=plt.cm.RdYlGn_r,
+                         extent=[0, 1, 0, 1])
+        ax_legend.set_xticks([0, 0.5, 1.0])
+        ax_legend.set_xticklabels(["Low risk", "Moderate", "High risk"], fontsize=6)
+        ax_legend.set_yticks([])
+        ax_legend.tick_params(length=0, pad=2)
+        for spine in ax_legend.spines.values():
+            spine.set_visible(False)
+        st.pyplot(fig_legend)
+        plt.close(fig_legend)
+
         st.caption(
             "Each box is one nucleotide. Colour reflects synthesis risk at that "
-            "position: green = low risk, red = high risk. The heatmap is scaled "
-            "by the overall score — easy sequences appear mostly green, "
-            "difficult sequences highlight the problematic regions in red."
+            "position, scaled by the overall score — easy sequences appear mostly "
+            "green, difficult sequences highlight problematic regions in red."
         )
     else:
         st.info(
