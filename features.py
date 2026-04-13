@@ -6,8 +6,8 @@ These features serve two purposes:
   1. Generate synthetic training labels (weighted combination → score)
   2. Provide interpretable baseline features alongside the Transformer
 
-In an interview, you should be able to explain WHY each feature matters
-for synthesis yield, n-1 deletion rate, and HPLC purification.
+Short snippet included for explaing why each feature matters
+for things like synthesis yield, n-1 deletion rate, and HPLC purification.
 """
 
 import re
@@ -84,7 +84,7 @@ def self_complementarity_score(seq: str, window: int = 4) -> float:
         return 0.0
 
     # Extract all windows
-    windows = [seq[i:i + window] for i in range(n - window + 1)]
+    windows = [seq[i : i + window] for i in range(n - window + 1)]
 
     comp_count = 0
     for i, w1 in enumerate(windows):
@@ -116,7 +116,7 @@ def length_penalty(seq: str) -> float:
     """
     n = len(seq)
     coupling_efficiency = 0.99
-    return coupling_efficiency ** n
+    return coupling_efficiency**n
 
 
 def dinucleotide_complexity(seq: str) -> float:
@@ -138,7 +138,7 @@ def dinucleotide_complexity(seq: str) -> float:
     # Count dinucleotides
     dinucs = {}
     for i in range(len(seq) - 1):
-        di = seq[i:i + 2]
+        di = seq[i : i + 2]
         dinucs[di] = dinucs.get(di, 0) + 1
 
     total = sum(dinucs.values())
@@ -200,7 +200,7 @@ def g_quadruplex_tracts(seq: str) -> int:
     Returns: number of GGG+ tracts (0 = no risk, >=4 = G-quad possible)
     """
     seq = seq.upper()
-    return len(re.findall(r'G{3,}', seq))
+    return len(re.findall(r"G{3,}", seq))
 
 
 def compute_all_features(seq: str) -> Dict[str, float]:
@@ -249,7 +249,9 @@ def heuristic_score(seq: str) -> float:
     if gc < 0.40:
         score -= 15 * (0.40 - gc) / 0.40  # Up to -15 for 0% GC
     elif gc > 0.60:
-        score -= 20 * (gc - 0.60) / 0.40  # Up to -20 for 100% GC (asymmetric: high GC worse)
+        score -= (
+            20 * (gc - 0.60) / 0.40
+        )  # Up to -20 for 100% GC (asymmetric: high GC worse)
 
     # --- G-quadruplex (multi-tract) ---
     # Weight: very high. G-quads from 4+ separate GGG tracts are as

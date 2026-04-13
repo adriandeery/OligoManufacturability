@@ -37,6 +37,7 @@ import numpy as np
 
 try:
     import anthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
@@ -70,7 +71,11 @@ def _build_prompt(
             end = min(len(sequence), pos + 4)
             context = sequence[start:end]
             marker_pos = pos - start
-            marked = context[:marker_pos] + f"[{context[marker_pos]}]" + context[marker_pos + 1:]
+            marked = (
+                context[:marker_pos]
+                + f"[{context[marker_pos]}]"
+                + context[marker_pos + 1 :]
+            )
             position_details.append(
                 f"  Position {pos + 1} ({sequence[pos]}): "
                 f"attribution={attributions[pos]:.3f}, context=...{marked}..."
@@ -87,12 +92,12 @@ LENGTH: {len(sequence)} nt
 MANUFACTURABILITY SCORE: {score:.1f}/100
 
 COMPUTED FEATURES:
-- GC content: {features.get('gc_content', 0):.1%}
-- Longest homopolymer run: {features.get('max_homopolymer', 0):.0f} nt
-- PolyG run: {features.get('polyG_run', 0):.0f} nt
-- Self-complementarity: {features.get('self_complementarity', 0):.1%}
-- Cumulative yield estimate: {features.get('length_yield', 0):.1%}
-- Dinucleotide complexity: {features.get('dinucleotide_complexity', 0):.2f}
+- GC content: {features.get("gc_content", 0):.1%}
+- Longest homopolymer run: {features.get("max_homopolymer", 0):.0f} nt
+- PolyG run: {features.get("polyG_run", 0):.0f} nt
+- Self-complementarity: {features.get("self_complementarity", 0):.1%}
+- Cumulative yield estimate: {features.get("length_yield", 0):.1%}
+- Dinucleotide complexity: {features.get("dinucleotide_complexity", 0):.2f}
 
 TOP PROBLEMATIC POSITIONS (from model attribution):
 {positions_str}
@@ -158,7 +163,8 @@ def _fallback_suggestions(
     # A G-quadruplex forms when 4+ separate GGG tracts are present,
     # even if no single run exceeds 3. This is the telomeric repeat problem.
     import re
-    g_tracts = re.findall(r'G{3,}', sequence)
+
+    g_tracts = re.findall(r"G{3,}", sequence)
     if len(g_tracts) >= 4:
         suggestions.append(
             "**G-Quadruplex Risk ({} G-tracts detected)**\n"
@@ -168,7 +174,9 @@ def _fallback_suggestions(
             "(disrupts Hoogsteen bonding, preserves Watson-Crick pairing)\n"
             "- **Alternative**: 2'-OMe-G at one position per tract\n"
             "- **Process**: extend coupling time to 6 min at G positions, "
-            "consider elevated coupling temperature (40C)".format(len(g_tracts), len(g_tracts))
+            "consider elevated coupling temperature (40C)".format(
+                len(g_tracts), len(g_tracts)
+            )
         )
 
     # PolyG runs (consecutive, separate from multi-tract G-quad)
@@ -189,13 +197,17 @@ def _fallback_suggestions(
             "**High GC Content ({:.0%})**\n"
             "- Consider 5-methyl-C substitutions to reduce secondary structure\n"
             "- 2'-OMe modifications in GC-rich regions can improve coupling access\n"
-            "- Verify dissolution protocol — high-GC oligos may need heated TE buffer".format(gc)
+            "- Verify dissolution protocol — high-GC oligos may need heated TE buffer".format(
+                gc
+            )
         )
     elif gc < 0.35:
         suggestions.append(
             "**Low GC Content ({:.0%})**\n"
             "- AT-rich oligos generally synthesise well but check Tm for target binding\n"
-            "- Consider LNA modifications at critical binding positions to compensate for low Tm".format(gc)
+            "- Consider LNA modifications at critical binding positions to compensate for low Tm".format(
+                gc
+            )
         )
 
     # Self-complementarity
@@ -205,7 +217,9 @@ def _fallback_suggestions(
             "**Self-Complementarity Detected ({:.0%})**\n"
             "- Hairpin-forming regions reduce coupling efficiency\n"
             "- Consider 2'-OMe or 2'-MOE modifications in the stem region to destabilise intramolecular folding\n"
-            "- If this is an ASO, verify the hairpin doesn't overlap with the target-binding region".format(self_comp)
+            "- If this is an ASO, verify the hairpin doesn't overlap with the target-binding region".format(
+                self_comp
+            )
         )
 
     # Long sequence
@@ -215,14 +229,18 @@ def _fallback_suggestions(
             "**Long Sequence (estimated yield {:.0%})**\n"
             "- Consider phosphorothioate backbone throughout to improve stepwise coupling\n"
             "- Use extended coupling times (>3 min) for positions >40\n"
-            "- May need PAGE purification instead of HPLC for better n/n-1 resolution".format(length_yield)
+            "- May need PAGE purification instead of HPLC for better n/n-1 resolution".format(
+                length_yield
+            )
         )
 
     if not suggestions:
         suggestions.append(
             "**Sequence looks good for synthesis (score: {:.0f}/100)**\n"
             "- Standard phosphoramidite synthesis should work well\n"
-            "- Consider PS backbone at terminal positions (3 nt each end) for nuclease resistance if this is a therapeutic ASO".format(score)
+            "- Consider PS backbone at terminal positions (3 nt each end) for nuclease resistance if this is a therapeutic ASO".format(
+                score
+            )
         )
 
     return "\n\n".join(suggestions)

@@ -1,7 +1,7 @@
 """
 Configuration for OligoScore PoC.
 
-Key decisions documented here so you can explain each in an interview.
+Key decisions documented for better understanding behind decision-making.
 """
 
 from pathlib import Path

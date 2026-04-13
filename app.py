@@ -1,7 +1,7 @@
 """
 OligoScore — Oligonucleotide Manufacturability Predictor
 
-Streamlit inference page. This is what you'd demo in the interview.
+Streamlit inference page.
 
 Layout:
   1. Sequence input (text box + example sequences)

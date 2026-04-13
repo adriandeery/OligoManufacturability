@@ -5,14 +5,14 @@ Predicts synthesis difficulty for oligonucleotide sequences before a reagent is 
 ## Architecture
 
 ```
-Sequence → DNABERT-2 (frozen, 117M params) → [CLS] embedding → MLP head (50K params) → Score (0-100)
+Sequence → Nucleotide Transformer v2 (InstaDeep/NVIDIA, 2023 - frozen, 50M params) → [CLS] embedding → MLP head (50K params) → Score (0-100)
                                                   ↓
                                           Attention Rollout / Integrated Gradients
                                                   ↓
                                      Per-nucleotide attribution heatmap
 ```
 
-**Pretrained backbone**: DNABERT-2, a BERT model trained on multi-species genomes with BPE tokenization. Encodes dinucleotide context, GC patterns, and sequence motifs from billions of genomic sequences.
+**Pretrained backbone**: Nucleotide Transformer v2-50M was pretrained on 3.2B tokens of multi-species genomic data. It encodes dinucleotide context, GC patterns, and sequence motifs relevant to synthesis chemistry.
 
 **Task head**: Small MLP trained on synthetic data generated from known synthesis chemistry heuristics (GC content, homopolymer runs, self-complementarity, cumulative coupling yield, dinucleotide complexity).
 
@@ -57,7 +57,7 @@ streamlit run app.py
 | `config.py` | All hyperparameters and thresholds with chemistry rationale |
 | `features.py` | Heuristic feature extraction — each feature maps to a synthesis chemistry problem |
 | `data_gen.py` | Synthetic training data generation spanning the difficulty spectrum |
-| `model.py` | DNABERT-2 embeddings + MLP scoring head |
+| `model.py` | Nucleotide transformer v2 embeddings + MLP scoring head |
 | `train.py` | Training loop with cached embeddings and early stopping |
 | `explain.py` | Integrated Gradients + Attention Rollout for per-nucleotide attribution |
 | `suggest.py` | Claude API modification suggestions (with rule-based fallback) |
