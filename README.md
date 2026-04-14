@@ -2,6 +2,8 @@
 
 Predicts synthesis difficulty for oligonucleotide sequences before a reagent is spent.
 
+Access deployed app on Streamlit: https://oligosynthesis.streamlit.app/
+
 ## Architecture
 
 ```
