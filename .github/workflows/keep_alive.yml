@@ -2,12 +2,30 @@ name: Keep Streamlit app alive
 
 on:
   schedule:
-    - cron: "0 */2 * * *"   
+    - cron: "0 */2 * * *"
   workflow_dispatch:    # allow manual trigger from GitHub UI
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping app
-        run: curl -s -o /dev/null -w "%{http_code}" https://oligosynthesis.streamlit.app/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install playwright && playwright install chromium
+      - name: Visit app (and wake if asleep)
+        run: |
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          URL = "https://oligosynthesis.streamlit.app/"
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              page = b.new_page()
+              page.goto(URL, wait_until="networkidle", timeout=60000)
+              btn = page.get_by_role("button", name="Yes, get this app back up!")
+              if btn.count() > 0:
+                  btn.click()
+                  page.wait_for_load_state("networkidle", timeout=120000)
+              page.wait_for_timeout(15000)
+              b.close()
+          PY
